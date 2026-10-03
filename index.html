@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-AO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reservas</title>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}[hidden]{display:none!important}
+:root{--bg:#EEF3F4;--ink:#10303A;--ac:#0B6E8A;--mu:#5E7780;--ln:#D3DEE1;--ok:#2E7D5B;--wn:#A9650F}
+body{margin:0;font:16px/1.45 Figtree,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+button,input,select{font:inherit}
+button{border:1px solid var(--ln);background:#fff;color:var(--ink);padding:7px 12px;border-radius:6px;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.pri{background:var(--ac);border-color:var(--ac);color:#fff}
+header{padding:16px;max-width:820px;margin:auto;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+h1{margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em}
+nav,header div{display:flex;gap:4px;flex-wrap:wrap}
+nav .on{background:var(--ink);color:#fff;border-color:var(--ink)}
+#v{max-width:820px;margin:auto;padding:0 16px 60px}
+h2{font-size:15px;font-weight:800;margin:26px 0 6px;text-transform:capitalize}
+.t{display:grid;grid-template-columns:22px 48px 1fr auto;gap:4px 10px;align-items:center;padding:9px 0;border-top:1px solid var(--ln)}
+.t.ok{opacity:.45;text-decoration:line-through}
+.t em{grid-column:3/5;font-style:normal;color:var(--mu);font-size:14px}
+i{font-style:normal;color:#fff;font-size:13px;padding:1px 8px;border-radius:99px;white-space:nowrap}
+article{border-top:1px solid var(--ln);padding:14px 0}
+article h3{margin:6px 0 2px}
+article p{margin:0;color:var(--mu)}
+article div{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pg{background:var(--ok);color:#fff;border-color:var(--ok)}
+.np{background:var(--wn);color:#fff;border-color:var(--wn)}
+.vz,.lg{color:var(--mu)}p:empty{display:none}
+.fl{display:block;margin:10px 0}
+.nv{display:flex;gap:6px;align-items:center;margin:6px 0 12px}
+.sc{overflow-x:auto}
+table{border-collapse:collapse;font-size:12px}
+th{font-weight:600;padding:4px;text-align:left;white-space:nowrap}
+th.d{text-align:center}th.hj{color:var(--ac);text-decoration:underline}
+td{min-width:26px;height:30px;border:1px solid var(--ln);color:#fff;text-align:center;font-size:11px;background:#fff}
+td.o{background:#C9D3D6}
+dialog{border:0;border-radius:10px;width:min(560px,94vw);padding:18px}
+#ff{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#ff label{display:flex;flex-direction:column;font-size:14px;color:var(--mu);gap:3px}
+#ff .ck{flex-direction:row;align-items:center;gap:8px}
+#ff input:not([type=checkbox]),#ff select{padding:8px;border:1px solid var(--ln);border-radius:6px;color:var(--ink)}
+.bt{grid-column:1/-1;display:flex;gap:8px}
+#login{max-width:320px;margin:20vh auto;display:grid;gap:10px;padding:16px}
+#login input{padding:10px;border:1px solid var(--ln);border-radius:6px}
+#err{color:var(--wn);margin:0}
+</style>
+</head>
+<body>
+<section id="login">
+<h1>Reservas</h1>
+<input id="em" type="email" placeholder="Email" autocomplete="username">
+<input id="pw" type="password" placeholder="Palavra-passe" autocomplete="current-password">
+<button id="entrar" class="pri">Entrar</button>
+<p id="err"></p>
+</section>
+<main id="app" hidden>
+<header>
+<h1>Reservas</h1>
+<nav><button data-t="agenda">Agenda</button><button data-t="reservas">Reservas</button><button data-t="cal">Calendário</button></nav>
+<div><button id="nova" class="pri">Nova reserva</button><button id="pdfs">PDF da semana</button><button id="sair">Sair</button></div>
+</header>
+<div id="v"></div>
+</main>
+<dialog id="f"><form id="ff"></form></dialog>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,collection,onSnapshot,addDoc,setDoc,updateDoc,deleteDoc,doc} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const app=initializeApp({apiKey:'COLA_AQUI',authDomain:'COLA_AQUI',projectId:'COLA_AQUI',appId:'COLA_AQUI'});
+const auth=getAuth(app),db=getFirestore(app);
+
+const $=s=>document.querySelector(s);
+const APTS=['La Vie','Blue Sea','Moon','Kinaxixi Palace','Skyline 54'];
+const COR={'La Vie':'#0B6E8A','Blue Sea':'#3B5BDB','Moon':'#7B6CD9','Kinaxixi Palace':'#A9650F','Skyline 54':'#2F8F6B'};
+const F=[['nome','Nome','text'],['tel','Telefone','tel'],['apt','Apartamento','select'],['hosp','Hóspedes','number'],['entrada','Check-in','date'],['hEntrada','Hora do check-in','time'],['saida','Check-out','date'],['hSaida','Hora do check-out','time'],['pickup','Pick-up','checkbox'],['hPickup','Hora do pick-up','time'],['voo','Voo','text'],['dropoff','Drop-off','checkbox'],['hDrop','Hora do drop-off','time'],['tour','Tour','checkbox'],['dTour','Data do tour','date'],['hTour','Hora do tour','time'],['pago','Pago','checkbox'],['notas','Notas','text']];
+
+const e=s=>String(s??'').replace(/[&<>"]/g,c=>'&#'+c.charCodeAt(0)+';');
+const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const today=()=>iso(new Date());
+const add=(s,n)=>{const[y,m,d]=s.split('-').map(Number);return iso(new Date(y,m-1,d+n))};
+const diff=(a,b)=>Math.round((new Date(b)-new Date(a))/864e5);
+const fmt=s=>s.split('-').reverse().join('/');
+const dia=s=>{const[y,m,d]=s.split('-');return new Date(y,m-1,d).toLocaleDateString('pt-PT',{weekday:'long'})+' '+d+'/'+m};
+const ord=(a,b)=>(a.hora||'99').localeCompare(b.hora||'99');
+
+let R=[],tab='agenda',off=0,ativas=true,edit=null,un=null;
+
+const tasks=r=>{
+const t=[],p=(k,data,hora,txt)=>t.push({k:k+data,data,hora:hora||'',txt,r});
+p('in',r.entrada,r.hEntrada,'Receber e check-in');
+if(r.pickup)p('pu',r.entrada,r.hPickup,'Pick-up'+(r.voo?' (voo '+e(r.voo)+')':''));
+for(let d=add(r.entrada,3);d<r.saida;d=add(d,3))p('cl',d,'','Limpeza');
+if(r.tour&&r.dTour)p('tr',r.dTour,r.hTour,'Tour');
+if(r.dropoff)p('do',r.saida,r.hDrop,'Drop-off');
+p('out',r.saida,r.hSaida,'Check-out');
+p('lf',r.saida,'','Limpeza final');
+return t};
+
+const row=(t,late)=>{const d=t.r.feitas?.[t.k];return `<label class="t ${d?'ok':''}"><input type="checkbox" data-r="${t.r.id}" data-k="${t.k}" ${d?'checked':''}><b>${late?fmt(t.data).slice(0,5):t.hora}</b><span>${t.txt}</span><i style="background:${COR[t.r.apt]}">${t.r.apt}</i><em>${e(t.r.nome)}</em></label>`};
+
+const agenda=()=>{
+const T=R.flatMap(tasks),h=today();
+const late=T.filter(t=>t.data<h&&t.data>=add(h,-7)&&!t.r.feitas?.[t.k]).sort((a,b)=>a.data<b.data?-1:1);
+let s=late.length?`<h2>Em atraso</h2>${late.map(t=>row(t,1)).join('')}`:'';
+for(let i=0;i<7;i++){const d=add(h,i),g=T.filter(t=>t.data==d).sort(ord);s+=`<h2>${i?'':'Hoje, '}${dia(d)}</h2>${g.length?g.map(t=>row(t)).join(''):'<p class="vz">Nada agendado.</p>'}`}
+return s};
+
+const card=r=>`<article><i style="background:${COR[r.apt]}">${r.apt}</i><h3>${e(r.nome)}</h3><p>${fmt(r.entrada)} ${r.hEntrada||''} até ${fmt(r.saida)} ${r.hSaida||''}, ${diff(r.entrada,r.saida)} noites${r.hosp?', '+r.hosp+' hóspedes':''}</p><p>${[r.pickup&&'Pick-up',r.dropoff&&'Drop-off',r.tour&&r.dTour&&'Tour '+fmt(r.dTour)].filter(Boolean).join(', ')}</p><div><button data-a="pago" data-id="${r.id}" class="${r.pago?'pg':'np'}">${r.pago?'Pago':'Não pago'}</button><button data-a="ext" data-id="${r.id}">Estender</button><button data-a="ed" data-id="${r.id}">Editar</button>${r.entrada<=today()&&today()<r.saida?`<button data-a="hoje" data-id="${r.id}">Check-out hoje</button>`:''}<button data-a="pdf" data-id="${r.id}">Ficha PDF</button><button data-a="del" data-id="${r.id}">Apagar</button></div></article>`;
+
+const reservas=()=>{
+const L=R.filter(r=>!ativas||r.saida>=today()).sort((a,b)=>a.entrada<b.entrada?-1:1);
+return `<label class="fl"><input type="checkbox" id="at" ${ativas?'checked':''}> Só ativas e futuras</label>`+(L.length?L.map(card).join(''):'<p class="vz">Sem reservas. Carrega em "Nova reserva".</p>')};
+
+const cal=()=>{
+const s=add(today(),off),D=Array.from({length:14},(_,i)=>add(s,i));
+const cell=(a,d)=>{const r=R.find(r=>r.apt==a&&d>=r.entrada&&d<r.saida);if(r)return `<td style="background:${COR[a]}" title="${e(r.nome)}, ${fmt(r.entrada)} a ${fmt(r.saida)}">${d==r.entrada?e(r.nome).slice(0,2):''}</td>`;return `<td class="${R.some(r=>r.apt==a&&r.saida==d)?'o':''}"></td>`};
+return `<div class="nv"><button data-a="prev">Anterior</button><button data-a="hj">Hoje</button><button data-a="next">Seguinte</button><span>${fmt(s)} a ${fmt(D[13])}</span></div><div class="sc"><table><tr><th></th>${D.map(d=>`<th class="d ${d==today()?'hj':''}">${d.slice(8)}</th>`).join('')}</tr>${APTS.map(a=>`<tr><th>${a}</th>${D.map(d=>cell(a,d)).join('')}</tr>`).join('')}</table></div><p class="lg">Cor cheia: ocupado. Cinzento: dia de check-out.</p>`};
+
+const render=()=>{
+document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==tab));
+$('#v').innerHTML=({agenda,reservas,cal})[tab]()};
+
+const upd=(id,o)=>updateDoc(doc(db,'reservas',id),o);
+
+$('#ff').innerHTML=F.map(([k,l,t])=>`<label class="${t=='checkbox'?'ck':''}">${l}${t=='select'?`<select name="${k}">${APTS.map(a=>`<option>${a}</option>`).join('')}</select>`:`<input name="${k}" type="${t}" ${t=='number'?'min="1"':''}>`}</label>`).join('')+'<div class="bt"><button class="pri">Guardar</button><button type="button" id="cn">Cancelar</button></div>';
+
+const abrir=r=>{
+edit=r?.id||null;
+const f=$('#ff');
+F.forEach(([k,,t])=>{const i=f.elements[k];if(t=='checkbox')i.checked=!!r?.[k];else i.value=r?.[k]??(t=='select'?APTS[0]:'')});
+$('#f').showModal()};
+
+$('#cn').onclick=()=>$('#f').close();
+$('#nova').onclick=()=>abrir();
+
+$('#ff').onsubmit=async ev=>{
+ev.preventDefault();
+const f=ev.target,v={};
+F.forEach(([k,,t])=>{const i=f.elements[k];v[k]=t=='checkbox'?i.checked:i.value});
+if(!v.nome||!v.entrada||!v.saida)return alert('Preenche o nome, o check-in e o check-out.');
+if(v.saida<=v.entrada)return alert('O check-out tem de ser depois do check-in.');
+if(v.tour&&!v.dTour)return alert('Indica a data do tour.');
+const c=R.find(o=>o.id!==edit&&o.apt===v.apt&&v.entrada<o.saida&&v.saida>o.entrada);
+if(c)return alert(`${v.apt} já está reservado por ${c.nome} de ${fmt(c.entrada)} a ${fmt(c.saida)}.`);
+edit?await setDoc(doc(db,'reservas',edit),v,{merge:true}):await addDoc(collection(db,'reservas'),{...v,feitas:{}});
+$('#f').close()};
+
+const pdf=(t,L,n)=>{
+const D=new jspdf.jsPDF();
+let y=18;
+D.setFontSize(16);D.text(t,14,y);y+=10;D.setFontSize(10);
+L.forEach(([s,h])=>{if(y>280){D.addPage();y=18}if(h)y+=4;D.setFont('helvetica',h?'bold':'normal');D.text(s,14,y);y+=6});
+D.save(n)};
+
+const ficha=r=>{
+const L=[['Cliente: '+r.nome+(r.tel?'   Tel: '+r.tel:'')],['Apartamento: '+r.apt],['Check-in: '+fmt(r.entrada)+' '+(r.hEntrada||'')],['Check-out: '+fmt(r.saida)+' '+(r.hSaida||'')],['Hóspedes: '+(r.hosp||'-')],['Pagamento: '+(r.pago?'Pago':'Não pago')]];
+if(r.notas)L.push(['Notas: '+r.notas]);
+L.push(['Agenda da reserva',1]);
+tasks(r).sort((a,b)=>a.data<b.data?-1:a.data>b.data?1:ord(a,b)).forEach(t=>L.push([fmt(t.data)+'   '+(t.hora||'--:--')+'   '+t.txt.replace(/&#\d+;/g,'')]));
+pdf('Reserva '+r.nome,L,'reserva-'+r.nome+'.pdf')};
+
+$('#pdfs').onclick=()=>{
+const T=R.flatMap(tasks),h=today(),L=[];
+for(let i=0;i<7;i++){const d=add(h,i),g=T.filter(t=>t.data==d).sort(ord);L.push([dia(d),1]);g.length?g.forEach(t=>L.push([`${t.hora||'--:--'}   ${t.txt.replace(/&#\d+;/g,'')}   |   ${t.r.apt}   |   ${t.r.nome}`])):L.push(['Nada agendado.'])}
+pdf('Agenda '+fmt(h)+' a '+fmt(add(h,6)),L,'agenda-'+h+'.pdf')};
+
+$('#v').onclick=ev=>{
+const b=ev.target.closest('button');
+if(!b)return;
+const{a,id}=b.dataset,r=R.find(x=>x.id==id);
+if(a=='pago')upd(id,{pago:!r.pago});
+else if(a=='ed'||a=='ext'){abrir(r);if(a=='ext')$('#ff').elements.saida.focus()}
+else if(a=='hoje')upd(id,{saida:today()});
+else if(a=='pdf')ficha(r);
+else if(a=='del'&&confirm('Apagar a reserva de '+r.nome+'?'))deleteDoc(doc(db,'reservas',id));
+else if(a=='prev'){off-=7;render()}
+else if(a=='next'){off+=7;render()}
+else if(a=='hj'){off=0;render()}};
+
+$('#v').onchange=ev=>{
+const i=ev.target;
+if(i.id=='at'){ativas=i.checked;render()}
+else if(i.dataset.k)upd(i.dataset.r,{['feitas.'+i.dataset.k]:i.checked})};
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
+
+$('#entrar').onclick=()=>signInWithEmailAndPassword(auth,$('#em').value,$('#pw').value).catch(()=>$('#err').textContent='Email ou palavra-passe errados.');
+$('#pw').onkeydown=ev=>ev.key=='Enter'&&$('#entrar').click();
+$('#sair').onclick=()=>signOut(auth);
+
+onAuthStateChanged(auth,u=>{
+$('#login').hidden=!!u;
+$('#app').hidden=!u;
+un?.();
+un=u?onSnapshot(collection(db,'reservas'),s=>{R=s.docs.map(d=>({id:d.id,...d.data()}));render()}):null});
+</script>
+</body>
+</html>
