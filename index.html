@@ -191,7 +191,7 @@ else if(i.dataset.k)upd(i.dataset.r,{['feitas.'+i.dataset.k]:i.checked})};
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;render()});
 
 $('#entrar').onclick=()=>signInWithEmailAndPassword(auth,$('#em').value,$('#pw').value).catch(()=>$('#err').textContent='Email ou palavra-passe errados.');
-$('#pw').onkeydown=ev=>ev.key=='Enter'&&$('#entrar').click();
+$('#pw').onkeydown=ev=>{if(ev.key=='Enter')$('#entrar').click()};
 $('#sair').onclick=()=>signOut(auth);
 
 onAuthStateChanged(auth,u=>{
