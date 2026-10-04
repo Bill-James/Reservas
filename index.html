@@ -61,7 +61,7 @@ dialog{border:0;border-radius:10px;width:min(560px,94vw);padding:18px}
 <header>
 <h1>Reservas</h1>
 <nav><button data-t="agenda">Agenda</button><button data-t="reservas">Reservas</button><button data-t="cal">Calendário</button></nav>
-<div><button id="nova" class="pri">Nova reserva</button><button id="pdfs">PDF da semana</button><button id="sair">Sair</button></div>
+<div><button id="nova" class="pri">Nova reserva</button><button id="pdfs">PDF da semana</button><button id="ics">Exportar para agenda</button><button id="sair">Sair</button></div>
 </header>
 <div id="v"></div>
 </main>
@@ -169,6 +169,18 @@ $('#pdfs').onclick=()=>{
 const T=R.flatMap(tasks),h=today(),L=[];
 for(let i=0;i<7;i++){const d=add(h,i),g=T.filter(t=>t.data==d).sort(ord);L.push([dia(d),1]);g.length?g.forEach(t=>L.push([`${t.hora||'--:--'}   ${t.txt.replace(/&#\d+;/g,'')}   |   ${t.r.apt}   |   ${t.r.nome}`])):L.push(['Nada agendado.'])}
 pdf('Agenda '+fmt(h)+' a '+fmt(add(h,6)),L,'agenda-'+h+'.pdf')};
+
+  $('#ics').onclick=()=>{
+const z=s=>s.replace(/-/g,'');
+const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Reservas//PT'];
+R.flatMap(tasks).filter(t=>t.data>=today()&&!t.r.feitas?.[t.k]).forEach(t=>{
+const h=(t.hora||'09:00').replace(':','')+'00',s=(t.txt.replace(/&#\d+;/g,'')+' - '+t.r.apt+' - '+t.r.nome).replace(/[,;\\\n]/g,' ');
+L.push('BEGIN:VEVENT',`UID:${t.r.id}-${t.k}@reservas`,`DTSTAMP:${z(today())}T000000`,`DTSTART:${z(t.data)}T${h}`,'DURATION:PT1H',`SUMMARY:${s}`,'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:Lembrete','TRIGGER:-PT1H','END:VALARM','END:VEVENT')});
+L.push('END:VCALENDAR');
+const a=document.createElement('a');
+a.href=URL.createObjectURL(new Blob([L.join('\r\n')],{type:'text/calendar'}));
+a.download='agenda.ics';
+a.click()};
 
 $('#v').onclick=ev=>{
 const b=ev.target.closest('button');
